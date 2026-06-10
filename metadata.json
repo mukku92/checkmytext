@@ -1,0 +1,6 @@
+{
+  "name": "AI Writing Assistant & Grammar Checker",
+  "description": "An interactive, premium writing app featuring real-time AI grammar correction, tone rewriting, style suggestions, autocomplete, and comprehensive readability statistics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
