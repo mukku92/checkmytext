@@ -33,6 +33,40 @@ async function startServer() {
     }
   });
 
+  // Robust function with progressive backoff and fallback models
+  async function generateContentWithRetryAndFallback(params: any) {
+    const modelsToTry = [params.model, 'gemini-flash-latest', 'gemini-3.1-flash-lite'];
+    let lastError: any = null;
+
+    for (const modelName of modelsToTry) {
+      if (!modelName) continue;
+      
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          console.log(`[AI Info] Attempting to invoke model "${modelName}" (Attempt ${attempt}/3)...`);
+          const response = await ai.models.generateContent({
+            ...params,
+            model: modelName,
+          });
+          console.log(`[AI Success] Successfully completed generation with model "${modelName}".`);
+          return response;
+        } catch (err: any) {
+          lastError = err;
+          console.warn(`[AI Warning] Model "${modelName}" failed on attempt ${attempt}: ${err.message || err}`);
+          
+          // Wait progressive delay unless it is the last attempt
+          if (attempt < 3) {
+            const delayMs = attempt * 800;
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+          }
+        }
+      }
+      console.warn(`[AI Warning] Model "${modelName}" exhausted. Dropping back to next fallback option if available.`);
+    }
+    
+    throw lastError || new Error('All model attempts and fallbacks failed to respond.');
+  }
+
   // Endpoints
   // Analyze text for grammar, spelling, punctuation, clarity, and readability
   app.post('/api/analyze', async (req, res) => {
@@ -64,7 +98,7 @@ Analyze this text immediately:
 ${text}
 """`;
 
-      const response = await ai.models.generateContent({
+      const response = await generateContentWithRetryAndFallback({
         model: 'gemini-3.5-flash',
         contents: prompt,
         config: {
@@ -147,7 +181,7 @@ ${text}
 
 Provide the fully rewritten result and a short, friendly summary of what edits were made in JSON.`;
 
-      const response = await ai.models.generateContent({
+      const response = await generateContentWithRetryAndFallback({
         model: 'gemini-3.5-flash',
         contents: prompt,
         config: {
@@ -187,7 +221,7 @@ Current Text Context:
 ${text}
 """`;
 
-      const response = await ai.models.generateContent({
+      const response = await generateContentWithRetryAndFallback({
         model: 'gemini-3.5-flash',
         contents: prompt,
         config: {
